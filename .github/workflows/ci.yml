@@ -1,3 +1,4 @@
+
 name: CI - NodeExpressAPI
 
 on:
@@ -5,17 +6,18 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo:6
+        image: mongo:5
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand('ping')'" --health-interval 10s --health-timeout 5s --health-retries 5
+           --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -29,9 +31,9 @@ jobs:
         run: cp .env.test .env
       - name: Esperar MongoDB subir
         run: |
-          for i in {1..10}; do
+          for i in {1..20}; do
             nc -z localhost 27017 && echo "MongoDB está pronto" && break
-            sleep 2
+            sleep 3
           done
       - name: Rodar lint
         run: npm run lint
