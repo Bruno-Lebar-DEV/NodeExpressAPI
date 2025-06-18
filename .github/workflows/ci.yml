@@ -1,0 +1,39 @@
+name: CI - NodeExpressAPI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand('ping')'" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependências
+        run: npm install
+      - name: Copiar .env.test
+        run: cp .env.test .env
+      - name: Esperar MongoDB subir
+        run: |
+          for i in {1..10}; do
+            nc -z localhost 27017 && echo "MongoDB está pronto" && break
+            sleep 2
+          done
+      - name: Rodar lint
+        run: npm run lint
+      - name: Rodar testes
+        run: npm test

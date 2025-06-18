@@ -1,0 +1,432 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "NodeExpressAPI",
+    "version": "1.0.0",
+    "description": "Documentação da API REST criada com Node.js e Express"
+  },
+  "servers": [{ "url": "http://localhost:5000" }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Registra um novo usuário (role sempre visual)",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "João Silva" },
+                  "email": { "type": "string", "example": "joao@email.com" },
+                  "password": { "type": "string", "example": "Senha@123" }
+                },
+                "required": ["name", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuário registrado com sucesso" },
+          "400": { "description": "Dados inválidos ou e-mail já cadastrado" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Realiza login e retorna um token JWT",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "example": "joao@email.com" },
+                  "password": { "type": "string", "example": "Senha@123" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login realizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "_id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "email": { "type": "string" },
+                        "role": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Usuário não encontrado ou senha inválida" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Logout do usuário (invalida refresh token, stateless)",
+        "tags": ["Auth"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Logout realizado com sucesso" },
+          "400": { "description": "Requisição inválida" }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Gera novo access token a partir de um refresh token válido",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": { "type": "string", "example": "<refresh_token>" }
+                },
+                "required": ["refreshToken"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Novo access token gerado com sucesso" },
+          "400": { "description": "Refresh token inválido ou ausente" }
+        }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "summary": "Cria um novo usuário (apenas admin, role sempre visual)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["name", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuário criado com sucesso" },
+          "400": { "description": "Dados inválidos" },
+          "403": { "description": "Permissão negada" }
+        }
+      },
+      "get": {
+        "summary": "Lista usuários (apenas admin, com filtros e busca)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1, "minimum": 1 }, "description": "Página da listagem" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10, "maximum": 100 }, "description": "Quantidade de itens por página (máx. 100)" },
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["admin", "editor", "visual"] }, "description": "Filtrar por role" },
+          { "name": "email", "in": "query", "schema": { "type": "string" }, "description": "Buscar usuário por email exato" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de usuários retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+                    "page": { "type": "integer" },
+                    "limit": { "type": "integer" },
+                    "total": { "type": "integer" },
+                    "totalPages": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "summary": "Obtém um usuário por id (admin ou o próprio usuário)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Usuário retornado com sucesso" },
+          "404": { "description": "Usuário não encontrado" },
+          "401": { "description": "Token inválido ou não fornecido" },
+          "403": { "description": "Acesso negado" }
+        }
+      },
+      "put": {
+        "summary": "Atualiza um usuário (admin ou o próprio usuário, não permite alterar role)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Usuário atualizado com sucesso" },
+          "404": { "description": "Usuário não encontrado" },
+          "401": { "description": "Token inválido ou não fornecido" },
+          "400": { "description": "Alteração de role não permitida nesta rota" }
+        }
+      },
+      "patch": {
+        "summary": "Atualiza parcialmente um usuário (admin ou o próprio usuário, não permite alterar role)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Usuário atualizado parcialmente com sucesso" },
+          "404": { "description": "Usuário não encontrado" },
+          "401": { "description": "Token inválido ou não fornecido" },
+          "400": { "description": "Alteração de role não permitida nesta rota" }
+        }
+      },
+      "delete": {
+        "summary": "Remove (soft delete) um usuário (admin ou o próprio usuário)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Usuário marcado como deletado com sucesso" },
+          "404": { "description": "Usuário não encontrado" },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      }
+    },
+    "/api/users/{id}/roles": {
+      "put": {
+        "summary": "Altera a role de um usuário (apenas admin)",
+        "tags": ["Usuários"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": { "type": "string", "enum": ["admin", "editor", "visual"] }
+                },
+                "required": ["role"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Perfil (role) atualizado com sucesso" },
+          "404": { "description": "Usuário não encontrado" },
+          "401": { "description": "Token inválido ou não fornecido" },
+          "403": { "description": "Permissão negada" },
+          "400": { "description": "Papel de usuário inválido" }
+        }
+      }
+    },
+    "/api/tasks": {
+      "post": {
+        "summary": "Cria uma nova task (apenas admin/editor)",
+        "tags": ["Tasks"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "example": "Comprar pão" },
+                  "description": { "type": "string", "example": "Ir à padaria" },
+                  "group": { "type": "string", "example": "compras" }
+                },
+                "required": ["title"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Task criada com sucesso" },
+          "400": { "description": "Dados inválidos" },
+          "403": { "description": "Permissão negada" }
+        }
+      },
+      "get": {
+        "summary": "Lista tasks do usuário autenticado (com paginação, filtro, busca)",
+        "tags": ["Tasks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1, "minimum": 1 }, "description": "Página da listagem" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10, "maximum": 100 }, "description": "Quantidade de itens por página (máx. 100)" },
+          { "name": "group", "in": "query", "schema": { "type": "string" }, "description": "Filtrar por grupo" },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["completed", "pending"] }, "description": "Filtrar por status (completed/pending)" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Buscar por termo no título" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de tasks retornada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tasks": { "type": "array", "items": { "$ref": "#/components/schemas/Task" } },
+                    "page": { "type": "integer" },
+                    "limit": { "type": "integer" },
+                    "total": { "type": "integer" },
+                    "totalPages": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      }
+    },
+    "/api/tasks/{id}": {
+      "get": {
+        "summary": "Obtém uma task por id (apenas do próprio usuário)",
+        "tags": ["Tasks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Task retornada com sucesso" },
+          "404": { "description": "Task não encontrada" },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      },
+      "put": {
+        "summary": "Atualiza uma task (apenas do próprio usuário)",
+        "tags": ["Tasks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "group": { "type": "string" },
+                  "completed": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Task atualizada com sucesso" },
+          "404": { "description": "Task não encontrada" },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      },
+      "delete": {
+        "summary": "Remove (soft delete) uma task (apenas do próprio usuário)",
+        "tags": ["Tasks"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Task marcada como deletada com sucesso" },
+          "404": { "description": "Task não encontrada" },
+          "401": { "description": "Token inválido ou não fornecido" }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Healthcheck da API e do banco de dados",
+        "tags": ["Infra"],
+        "responses": {
+          "200": { "description": "API e banco de dados funcionando" },
+          "503": { "description": "Banco de dados indisponível" }
+        }
+      }
+    }
+  }
+}
